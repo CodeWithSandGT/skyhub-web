@@ -23,18 +23,15 @@ export default async function handler(req, res) {
   }
 
   const now = Date.now();
-  const usersSnap = await db.ref('users').once('value');
-
-  let isValid = false;
-
-  usersSnap.forEach(childSnap => {
-    const data = childSnap.val();
-    const valid = data.generated?.find(k => k.key === key && k.expires > now);
-    if (valid) isValid = true;
-  });
-
-  res.status(200).json({
-    success: isValid,
-    message: isValid ? 'Key is valid' : 'Key is invalid or expired'
-  });
+  try {
+    const keyData = (await db.ref(`keys/${key}`).once('value')).val();
+    console.log(`API /verify cek kunci ${key}:`, keyData);
+    if (!keyData || (keyData.expires && keyData.expires <= now)) {
+      return res.status(200).json({ success: false, message: 'Key is invalid or expired' });
+    }
+    return res.status(200).json({ success: true, message: 'Key is valid' });
+  } catch (error) {
+    console.error('Error di API /verify:', error.message);
+    return res.status(500).json({ success: false, message: 'Server error, please try again later' });
+  }
 }
